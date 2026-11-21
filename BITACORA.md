@@ -25,3 +25,16 @@ Dificultad y solución. El entorno aislado bloqueó las conexiones locales con W
 Asistencia de IA. Codex apoyó la implementación TCP, las pruebas y el borrador de la sección del informe. Esta asistencia deberá recogerse también en la declaración de IA del informe general.
 
 Estado al cierre. Pendientes la captura real del intercambio en el equipo del integrante, la revisión del código para la demostración y la inclusión y compilación de sockets.tex en el informe general. La campaña oficial y la integración del transporte gRPC corresponden a las siguientes tareas del equipo.
+
+21 de noviembre de 2026 - Integración técnica del transporte gRPC
+Operador de la implementación y las comprobaciones: Codex, por solicitud de Byron Daniel Loor Mendoza. Este registro no atribuye una sesión de programación ni ejecución personal a Byron.
+
+Trabajo realizado por Codex
+- Se definió proto/mensajes.proto con el servicio EnviarMensaje, solicitud y acuse correlacionado, y se generaron los módulos con grpcio-tools sin editar sus importaciones.
+- Se implementaron servidor, cliente y nodo gRPC con el reloj y registro comunes, canales persistentes, timeout de 5 segundos e interfaz compatible con experiments/ejecutar.py.
+- Se añadieron ocho pruebas de desarrollo gRPC. Pasaron las 22 pruebas del repositorio, incluidas las 14 existentes de TCP. Se comprobó la integración gRPC con tres procesos, 20 intercambios y 100 solicitudes por cada tamaño y modo; los CSV fueron temporales y no forman parte de la campaña oficial.
+- Se documentaron el contrato, los comandos y la asistencia en docs/secciones/grpc.tex y src/grpc/README.md. Las versiones utilizadas fueron Python 3.12, grpcio 1.85.3, grpcio-tools 1.85.3 y protobuf 7.36.2.
+
+Dificultad y solución. La generación inicial debía conservar importaciones de paquete sin modificar código generado; se utilizó el prefijo virtual -Isrc/grpc/generado=proto. Las pruebas admiten diagnósticos de cierre de gRPC en stderr y verifican que stdout conserve respuestas JSON.
+
+Integración pendiente. La captura y ejecución personales de Byron, su revisión para la demostración y sus aportes y mensajes de commit propios no se acreditan mediante esta asistencia. Diego integra las dependencias y la sección en el informe general. John debe conciliar los nombres de columnas esperados por su verificador con los emitidos por RegistroEventos. No se modificó código de Diego, Khriz ni John ni se ejecutó la campaña oficial.

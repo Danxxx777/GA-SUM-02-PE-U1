@@ -1,0 +1,126 @@
+\section{Implementación de la comunicación mediante gRPC}
+\label{sec:grpc}
+
+Cada nodo mantiene un servidor gRPC y un cliente dentro del mismo proceso.
+El servidor atiende RPC mediante un grupo de cuatro hilos y escucha en
+\texttt{127.0.0.1}. El cliente utiliza un canal por destino y puerto.
+\texttt{nodo.py} integra ambos componentes con el reloj de Lamport y el
+registro CSV de \texttt{src/comun/}, sin depender del transporte TCP.
+
+\subsection{Contrato y generación}
+
+El servicio \texttt{Mensajeria} expone la operación unaria
+\texttt{EnviarMensaje}: cada solicitud produce un acuse. El contrato
+de \texttt{proto/mensajes.proto} contiene los mismos datos lógicos que TCP:
+
+\begin{verbatim}
+syntax = "proto3";
+package pe_u1;
+service Mensajeria {
+  rpc EnviarMensaje(Mensaje) returns (Acuse);
+}
+message Mensaje {
+  string sender = 1;
+  int64 timestamp = 2;
+  string message = 3;
+  string message_id = 4;
+}
+message Acuse {
+  string sender = 1;
+  int64 timestamp = 2;
+  string message = 3;
+  string message_id = 4;
+  string ack_for = 5;
+  bool ok = 6;
+}
+\end{verbatim}
+
+Los campos de texto usan \texttt{string} y el reloj usa un entero de
+64 bits con signo. El servicio rechaza relojes negativos e identificadores
+o emisores vacíos mediante el estado \texttt{INVALID\_ARGUMENT}. Los números
+de campo identifican los valores en la representación binaria. El acuse
+confirma el identificador original mediante \texttt{ack\_for}; su propio
+identificador añade el sufijo \texttt{-ack}.
+
+La generación sigue el procedimiento documentado por
+gRPC\footnote{\texttt{https://grpc.io/docs/languages/python/basics/}}.
+Desde la raíz, en \texttt{cmd.exe}, se ejecuta:
+
+\begin{verbatim}
+python -m grpc_tools.protoc -Isrc/grpc/generado=proto ^
+  --python_out=. --grpc_python_out=. proto/mensajes.proto
+\end{verbatim}
+
+El prefijo virtual determina la ruta \texttt{src/grpc/generado/} y las
+importaciones del paquete. Allí se generan \texttt{mensajes\_pb2.py}
+y \texttt{mensajes\_pb2\_grpc.py}, sin modificaciones manuales.
+
+Se comprobaron las siguientes versiones: Python 3.12, grpcio 1.85.3,
+grpcio-tools 1.85.3 y protobuf 7.36.2.
+
+\subsection{Reloj, acuses y latencia}
+
+Cada proceso comparte un único reloj entre cliente y servidor.
+Antes de enviar la solicitud se incrementa el contador. El servidor
+aplica \(\max(local, recibido)+1\) al recibirla y vuelve a incrementarlo
+al enviar el acuse. El cliente valida el emisor, los identificadores,
+el indicador de éxito y que el reloj del acuse sea posterior al de su
+solicitud; después registra la recepción. Un bloqueo agrupa cada avance
+del reloj con su escritura CSV para conservar el orden local entre hilos.
+
+La conexión inicial se establece antes del intervalo de latencia y el
+canal se reutiliza en las solicitudes posteriores. La medición incluye
+la serialización de la solicitud, el RPC, la deserialización del acuse
+y su validación, y termina antes del registro de la recepción:
+
+\begin{verbatim}
+inicio = perf_counter()
+acuse = stub.EnviarMensaje(solicitud, timeout=restante,
+                          wait_for_ready=False)
+\end{verbatim}
+
+Después de validar el acuse se calcula
+\texttt{(perf\_counter() - inicio) * 1000}. El tiempo máximo de la
+operación completa, incluida la conexión inicial, es de cinco segundos
+por defecto. El RPC recibe el tiempo restante de ese presupuesto.
+\texttt{--timeout} permite valores mayores que cero y de hasta diez
+segundos, inferiores a la espera de quince segundos del ejecutor.
+Tras un fallo se cierra el canal afectado. La aplicación no reintenta
+automáticamente la solicitud, porque el servidor podría haberla procesado
+antes de agotarse el plazo. Una orden posterior puede abrir otro canal.
+
+\subsection{Interfaz de ejecución y errores}
+
+Los argumentos, las órdenes JSON por entrada estándar y las respuestas
+son compatibles con el ejecutor existente. Una respuesta inicial con
+\texttt{ok=true} anuncia que el servidor está activo. Las órdenes contienen
+\texttt{destino}, \texttt{puerto}, \texttt{message} y \texttt{message\_id}.
+Una respuesta exitosa devuelve el identificador, \texttt{ok=true} y
+\texttt{latencia\_ms}. Los fallos devuelven \texttt{ok=false} y una
+descripción; los errores gRPC incluyen el estado y el detalle del RPC.
+La salida estándar contiene exclusivamente respuestas JSON. Los
+diagnósticos se reservan para la salida de error. Al terminar la entrada
+estándar, el proceso cierra el cliente y el servidor.
+
+Para iniciar A desde la raíz se utiliza:
+
+\begin{verbatim}
+python -m src.grpc.nodo --nombre nodo-A --puerto 5000 ^
+  --corrida prueba-byron --eventos data/grpc/prueba-A.csv
+\end{verbatim}
+
+B y C se inician en terminales distintas con sus nombres y puertos
+5001 y 5002, y con rutas CSV propias. Los archivos de eventos deben ser
+nuevos. Cuando se omite \texttt{--eventos}, el reloj sigue activo pero
+no se escriben eventos, conforme al protocolo de medición.
+
+\subsection{Alcance de las comprobaciones y asistencia de IA}
+
+Codex generó el contrato, los módulos gRPC, las pruebas automatizadas y
+esta sección, reutilizando las utilidades comunes y el ejecutor existentes.
+Codex ejecutó comprobaciones técnicas con conexiones locales reales y
+datos temporales: acuses, plazos, errores, reutilización del canal,
+relojes, concurrencia e integración de los tres procesos. Estas
+comprobaciones no constituyen la campaña experimental ni evidencias
+personales de ejecución de Byron. No se incorporan capturas ni resultados
+experimentales en esta sección.
