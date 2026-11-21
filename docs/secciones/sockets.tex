@@ -1,0 +1,127 @@
+% Fragmento para incluir desde docs/informe.tex mediante \input{secciones/sockets}.
+% No incluye preámbulo ni requiere paquetes adicionales.
+\section{Implementación de la comunicación mediante sockets TCP}
+\label{sec:sockets}
+
+Cada nodo ejecuta un servidor TCP en un hilo de aceptación y un cliente que
+recibe órdenes por la entrada estándar. Esto permite que un mismo proceso
+envíe solicitudes y atienda las de otros nodos. Los servidores escuchan
+exclusivamente en la dirección local \texttt{127.0.0.1}. Los puertos de la
+práctica son 5000, 5001 y 5002 para los nodos A, B y C, respectivamente.
+
+El código se divide en tres módulos. \texttt{servidor.py} implementa el
+encuadre de los mensajes, su validación y la atención de conexiones;
+\texttt{cliente.py} gestiona los envíos, los acuses y la latencia;
+\texttt{nodo.py} integra ambos con el reloj y el registro compartidos.
+
+\subsection{Delimitación y validación de los mensajes}
+
+Cada mensaje es un objeto JSON codificado en UTF-8 y terminado por un byte
+de salto de línea. Los saltos de línea dentro del texto se escapan durante
+la serialización JSON. Una lectura de TCP no se interpreta como un mensaje
+completo: el receptor acumula bytes hasta encontrar el delimitador y
+conserva los sobrantes para la siguiente lectura. La decodificación UTF-8
+ocurre después de reconstruir la línea, por lo que un carácter puede llegar
+fragmentado en varias lecturas.
+
+Las solicitudes contienen los campos \texttt{sender}, \texttt{timestamp},
+\texttt{message} y \texttt{message\_id}. Se exige texto no vacío para el
+emisor y el identificador, texto para el mensaje y un entero no negativo
+para el reloj; los valores booleanos no se aceptan como enteros. El límite
+de cada objeto JSON serializado es de 1 MiB, sin contar el delimitador.
+Este límite incluye los campos y los escapes del JSON, además de la carga
+útil. Los tamaños experimentales de 100 y 10240 bytes corresponden a la
+carga útil definida por el ejecutor, no al tamaño total transmitido.
+
+\subsection{Acuses y reloj de Lamport}
+
+El receptor actualiza su reloj al aceptar la solicitud y vuelve a
+incrementarlo antes de enviar el acuse. Este contiene los campos comunes,
+\texttt{ok=true}, un identificador formado con el sufijo \texttt{-ack}
+y el campo \texttt{ack\_for}, que confirma el identificador original.
+El cliente comprueba el emisor, ambos identificadores, el indicador de
+éxito y que el reloj del acuse sea posterior al de su envío. Después
+aplica la actualización de recepción a su propio reloj.
+
+Cada proceso mantiene una instancia de \texttt{RelojLamport}. Un bloqueo
+adicional agrupa el avance del reloj con la escritura del evento, para
+evitar que los hilos registren dos valores en orden inverso. Las solicitudes
+y los acuses generan eventos de envío y recepción. El siguiente fragmento
+resume la operación local usada en \texttt{EstadoNodo.evento}:
+
+\begin{verbatim}
+with self._lock:
+    tipo = "envio" if remoto is None else "recepcion"
+    valor = (self.reloj.envio() if remoto is None
+             else self.reloj.recepcion(remoto))
+    if self.registro is not None:
+        self.registro.escribir(identificador, tipo, valor)
+    return valor
+\end{verbatim}
+
+\subsection{Latencia y manejo de errores}
+
+Se conserva una conexión por destino y puerto durante la vida del cliente.
+La primera conexión se establece antes de iniciar el intervalo de latencia.
+La medición usa \texttt{time.perf\_counter()} desde el envío de la solicitud,
+incluida su serialización, hasta recibir y validar el acuse. El resultado
+se expresa en milisegundos. En las corridas de latencia se omite el argumento
+\texttt{--eventos}; el reloj permanece activo.
+
+El tiempo máximo predeterminado es de cinco segundos para la operación
+completa, incluida la conexión inicial. Un plazo absoluto se comprueba
+en cada lectura para que una respuesta que llega lentamente no prolongue
+indefinidamente la espera. Se puede configurar mediante \texttt{--timeout}
+con valores mayores que cero y de hasta diez segundos, inferiores a los
+quince segundos de espera del ejecutor.
+
+Un destino no disponible, un cierre prematuro, un JSON inválido o un acuse
+incorrecto producen una respuesta con \texttt{ok=false} y una descripción
+del error. Se descarta la conexión afectada; no se reintenta automáticamente
+la solicitud, porque el receptor podría haberla procesado. Una orden
+posterior puede abrir otra conexión. Los diagnósticos se escriben en la
+salida de error para preservar el protocolo JSON de la salida estándar.
+
+\subsection{Ejecución y comprobación de desarrollo}
+
+Desde la raíz del repositorio se inicia cada nodo en una terminal distinta.
+Por ejemplo, para A:
+
+\begin{verbatim}
+python -m src.sockets.nodo --nombre nodo-A --puerto 5000 ^
+  --corrida prueba-khriz
+\end{verbatim}
+
+El carácter de continuación mostrado corresponde a \texttt{cmd.exe}.
+Para B y C se sustituyen el nombre y el puerto por \texttt{nodo-B}/5001 y
+\texttt{nodo-C}/5002. El nodo informa su disponibilidad mediante una línea
+JSON. Una orden de ejemplo, escrita como una sola línea en la terminal de A,
+es la siguiente:
+
+\begin{verbatim}
+{"destino":"nodo-B","puerto":5001,"message":"Hola","message_id":"K-001"}
+\end{verbatim}
+
+Para registrar eventos se añade \texttt{--eventos} seguido de una
+ruta CSV distinta para cada nodo; el archivo debe ser nuevo. El proceso
+cierra sus conexiones al terminar la entrada estándar.
+
+La integración también se comprueba con el ejecutor existente:
+
+\begin{verbatim}
+python experiments/ejecutar.py --mecanismo sockets ^
+  --modo humo --salida data/prueba-tcp-khriz
+python -B -m unittest discover -s tests -v
+\end{verbatim}
+
+La carpeta de salida de la prueba de humo debe ser nueva. Las pruebas
+automatizadas cubren reconstrucción de UTF-8 fragmentado, mensajes
+agrupados, conexiones persistentes, mensajes largos, entradas inválidas,
+tiempo de espera, acuses incorrectos y comunicación de los tres procesos.
+Además verifican eventos reales de solicitudes y acuses y dos envíos
+independientes con el mismo reloj. Sus CSV se crean en carpetas temporales
+y no sustituyen los datos ni las conclusiones de la campaña experimental.
+
+La captura de autoría del intercambio se guarda en
+\texttt{evidencias/khriz/}. Debe mostrar la ejecución real en el equipo
+del integrante, junto con su identificación y la fecha y hora del sistema.
