@@ -1,0 +1,22 @@
+\begin{table}[htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\caption{Latencia y rendimiento por mecanismo, tamaño y modo (calentamiento excluido)}
+\label{tab:resumen-latencia}
+\begin{tabular}{@{}llrrrrrrr@{}}
+\toprule
+\textbf{Modo} & \textbf{Mecanismo} & \textbf{Bytes} & \textbf{n} & \textbf{Media} & \textbf{Med.} & \textbf{Desv.} & \textbf{p95} & \textbf{Msg/s} \\
+\midrule
+concurrente & gRPC & 100 & 500 & 0.559 & 0.542 & 0.092 & 0.751 & 3814 \\
+concurrente & Sockets TCP & 100 & 500 & 0.198 & 0.177 & 0.088 & 0.298 & 6047 \\
+concurrente & gRPC & 10240 & 500 & 0.827 & 0.756 & 0.299 & 1.340 & 2373 \\
+concurrente & Sockets TCP & 10240 & 500 & 0.282 & 0.263 & 0.084 & 0.415 & 4469 \\
+secuencial & gRPC & 100 & 500 & 0.644 & 0.484 & 0.311 & 1.206 & 1199 \\
+secuencial & Sockets TCP & 100 & 500 & 0.150 & 0.139 & 0.047 & 0.213 & 3409 \\
+secuencial & gRPC & 10240 & 500 & 0.528 & 0.515 & 0.088 & 0.688 & 1342 \\
+secuencial & Sockets TCP & 10240 & 500 & 0.320 & 0.308 & 0.116 & 0.472 & 1486 \\
+\bottomrule
+\end{tabular}
+\par\smallskip\footnotesize Latencias en milisegundos. n = envíos válidos de cinco corridas registradas por combinación.
+\end{table}

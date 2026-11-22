@@ -1,0 +1,37 @@
+== /tmp/tmpbidptl5a/sockets-eventos.csv ==
+Eventos: 80   Mensajes emparejados: 40
+1. Pares envío/recepción completos: OK
+2. reloj_recepcion > reloj_envio en todos los mensajes: OK
+3. Reloj estrictamente creciente en cada nodo: OK
+4. Eventos concurrentes con el mismo reloj (3 ejemplos):
+   - nodo-A (mensaje L-000-ack, recepcion) y nodo-B (mensaje L-001, envio) tienen reloj 4 y ninguno ocurre antes del otro.
+   - nodo-A (mensaje L-003, envio) y nodo-C (mensaje L-002-ack, recepcion) tienen reloj 10 y ninguno ocurre antes del otro.
+   - nodo-A (mensaje L-003-ack, recepcion) y nodo-B (mensaje L-004, envio) tienen reloj 13 y ninguno ocurre antes del otro.
+
+== /tmp/tmpy8hy8hzx/sockets-empate.csv ==
+Eventos: 8   Mensajes emparejados: 4
+1. Pares envío/recepción completos: OK
+2. reloj_recepcion > reloj_envio en todos los mensajes: OK
+3. Reloj estrictamente creciente en cada nodo: OK
+4. Eventos concurrentes con el mismo reloj (2 ejemplos):
+   - nodo-A (mensaje E-A, envio) y nodo-B (mensaje E-B, envio) tienen reloj 1 y ninguno ocurre antes del otro.
+   - nodo-A (mensaje E-A-ack, recepcion) y nodo-C (mensaje E-B, recepcion) tienen reloj 4 y ninguno ocurre antes del otro.
+
+== /tmp/tmp25ib6qtm/grpc-eventos.csv ==
+Eventos: 80   Mensajes emparejados: 40
+1. Pares envío/recepción completos: OK
+2. reloj_recepcion > reloj_envio en todos los mensajes: OK
+3. Reloj estrictamente creciente en cada nodo: OK
+4. Eventos concurrentes con el mismo reloj (3 ejemplos):
+   - nodo-A (mensaje L-000-ack, recepcion) y nodo-B (mensaje L-001, envio) tienen reloj 4 y ninguno ocurre antes del otro.
+   - nodo-A (mensaje L-003, envio) y nodo-C (mensaje L-002-ack, recepcion) tienen reloj 10 y ninguno ocurre antes del otro.
+   - nodo-A (mensaje L-003-ack, recepcion) y nodo-B (mensaje L-004, envio) tienen reloj 13 y ninguno ocurre antes del otro.
+
+== /tmp/tmp7ur55_29/grpc-empate.csv ==
+Eventos: 8   Mensajes emparejados: 4
+1. Pares envío/recepción completos: OK
+2. reloj_recepcion > reloj_envio en todos los mensajes: OK
+3. Reloj estrictamente creciente en cada nodo: OK
+4. Eventos concurrentes con el mismo reloj (2 ejemplos):
+   - nodo-A (mensaje E-A, envio) y nodo-B (mensaje E-B, envio) tienen reloj 1 y ninguno ocurre antes del otro.
+   - nodo-B (mensaje E-B-ack, recepcion) y nodo-C (mensaje E-A, recepcion) tienen reloj 4 y ninguno ocurre antes del otro.
