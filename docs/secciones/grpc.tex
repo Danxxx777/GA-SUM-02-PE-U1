@@ -114,13 +114,42 @@ B y C se inician en terminales distintas con sus nombres y puertos
 nuevos. Cuando se omite \texttt{--eventos}, el reloj sigue activo pero
 no se escriben eventos, conforme al protocolo de medición.
 
+\subsection{Comprobación manual en el equipo de Byron}
+
+El 21 de noviembre de 2026, Byron inició los tres nodos en terminales
+de su equipo y ejecutó tres solicitudes: \texttt{B-001} de A hacia B,
+\texttt{B-002} de B hacia C y \texttt{B-003} de C hacia A. Las tres
+recibieron un acuse válido. Después cerró los procesos mediante EOF.
+Las capturas originales de los intercambios y del cierre se conservan
+en \texttt{evidencias/byron/}, con usuario, equipo, fecha y zona horaria
+visibles.
+
+Los tres CSV de \texttt{data/grpc/practica-byron-01/} contienen doce
+eventos: envío y recepción de tres solicitudes y sus tres acuses.
+El primer intercambio registra los valores 1, 2, 3 y 4, correspondientes
+al envío de A, recepción en B, envío del acuse de B y recepción en A.
+En los seis pares registrados, el reloj de recepción es mayor que el
+de envío. Los relojes locales también crecen estrictamente.
+Los eventos abarcan desde las 18:49:51 hasta las 18:52:27, UTC-05:00.
+Después del cierre se calcularon y verificaron las sumas de los CSV
+en el archivo \texttt{SHA256SUMS} de esa misma carpeta.
+
+Esta comprobación manual documenta el intercambio entre los tres
+procesos. Por su número de envíos y sus condiciones, no sustituye
+las repeticiones, tamaños y concurrencia de la campaña experimental,
+ni permite concluir qué transporte tiene menor latencia.
+
 \subsection{Alcance de las comprobaciones y asistencia de IA}
 
-Codex generó el contrato, los módulos gRPC, las pruebas automatizadas y
+Codex, agente de OpenAI basado en GPT-6, generó el contrato, los módulos
+gRPC, las pruebas automatizadas y
 esta sección, reutilizando las utilidades comunes y el ejecutor existentes.
 Codex ejecutó comprobaciones técnicas con conexiones locales reales y
 datos temporales: acuses, plazos, errores, reutilización del canal,
 relojes, concurrencia e integración de los tres procesos. Estas
 comprobaciones no constituyen la campaña experimental ni evidencias
-personales de ejecución de Byron. No se incorporan capturas ni resultados
-experimentales en esta sección.
+personales de ejecución de Byron. La práctica manual descrita arriba
+fue operada por Byron siguiendo la orientación de Codex. Codex comprobó
+los registros, copió sin editar las capturas proporcionadas por Byron,
+verificó sus copias y calculó las sumas de los CSV cerrados. La redacción
+de esta comprobación también fue asistida por Codex.

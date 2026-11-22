@@ -34,7 +34,18 @@ Cada comando se ejecuta en su propia terminal y cada CSV debe ser nuevo. Tras el
 
 La respuesta exitosa contiene `latencia_ms` y un acuse de B con `ack_for=B-001` y `message_id=B-001-ack`. Para cerrar en `cmd.exe`, usar Ctrl+Z y Enter; también se admite Ctrl+C.
 
-Para la captura personal, Byron debe realizar el intercambio en su equipo y mostrar su identificación y la fecha y hora reales del sistema. Una imagen tomada por Codex no acreditaría esa ejecución personal. Esta entrega no incluye una captura de Byron.
+La práctica personal del 21 de noviembre de 2026 se conserva en `data/grpc/practica-byron-01/`: Byron inició los tres procesos, envió tres solicitudes en el recorrido A a B, B a C y C a A y cerró los nodos mediante EOF. Los tres CSV contienen 12 eventos y su archivo `SHA256SUMS` usa rutas relativas a esa carpeta. Las seis capturas originales de intercambio y cierre están en `evidencias/byron/`, con identificación del equipo, fecha y zona horaria visibles. Codex copió las imágenes suministradas por Byron sin editarlas y comprobó sus hashes. Esta práctica manual no es la campaña oficial.
+
+La regla de `.gitattributes` conserva los bytes de los CSV bajo `data/` sin conversión de saltos de línea de Git. El manifiesto de esta práctica se comprueba desde la raíz, en PowerShell, con:
+
+```powershell
+$carpetaPractica = 'data/grpc/practica-byron-01'
+Get-Content -LiteralPath "$carpetaPractica/SHA256SUMS" | ForEach-Object {
+    $sumaEsperada, $archivoPractica = $_ -split '  ', 2
+    $sumaObtenida = (Get-FileHash -LiteralPath (Join-Path $carpetaPractica $archivoPractica) -Algorithm SHA256).Hash
+    if ($sumaObtenida.ToLowerInvariant() -ne $sumaEsperada) { throw "Suma distinta: $archivoPractica" }
+}
+```
 
 ## Comprobación de desarrollo e integración
 
@@ -61,6 +72,6 @@ El ejecutor original admite `--mecanismo ambos` sin cambiar la carga. El cliente
 
 ## Procedencia y estado de autoría
 
-Codex escribió el contrato `.proto`, los tres módulos gRPC, `tests/test_grpc.py`, esta documentación y `docs/secciones/grpc.tex`. `grpcio-tools` generó los dos módulos de `generado/`. Se reutilizaron el reloj, el registro y el ejecutor que ya estaban en el repositorio, y se siguió la interfaz del transporte TCP existente.
+Codex, agente de OpenAI basado en GPT-6, escribió el contrato `.proto`, los tres módulos gRPC, `tests/test_grpc.py`, esta documentación y `docs/secciones/grpc.tex`. `grpcio-tools` generó los dos módulos de `generado/`. Se reutilizaron el reloj, el registro y el ejecutor que ya estaban en el repositorio, y se siguió la interfaz del transporte TCP existente.
 
 Las verificaciones técnicas ejecutadas por Codex no acreditan una revisión ni una ejecución personal de Byron. La asistencia aquí descrita también forma parte de la declaración de IA del bloque en `grpc.tex`. No se atribuyen a Byron mediciones, capturas o sesiones que no haya realizado. Un commit publicado por Codex no acredita por sí mismo los tres commits significativos personales ni los mensajes escritos por el integrante que exige la guía.

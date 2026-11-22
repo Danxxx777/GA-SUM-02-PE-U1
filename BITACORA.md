@@ -38,3 +38,16 @@ Trabajo realizado por Codex
 Dificultad y solución. La generación inicial debía conservar importaciones de paquete sin modificar código generado; se utilizó el prefijo virtual -Isrc/grpc/generado=proto. Las pruebas admiten diagnósticos de cierre de gRPC en stderr y verifican que stdout conserve respuestas JSON.
 
 Integración pendiente. La captura y ejecución personales de Byron, su revisión para la demostración y sus aportes y mensajes de commit propios no se acreditan mediante esta asistencia. Diego integra las dependencias y la sección en el informe general. John debe conciliar los nombres de columnas esperados por su verificador con los emitidos por RegistroEventos. No se modificó código de Diego, Khriz ni John ni se ejecutó la campaña oficial.
+
+21 de noviembre de 2026 - Práctica manual de gRPC en el equipo de Byron
+Operador de los nodos y los envíos: Byron Daniel Loor Mendoza. Codex proporcionó los comandos y la orientación, revisó los archivos y conservó las capturas originales suministradas por Byron.
+
+Trabajo verificable
+- Byron inició nodo-A, nodo-B y nodo-C en tres terminales de su equipo y ejecutó los intercambios B-001 (A hacia B), B-002 (B hacia C) y B-003 (C hacia A). Cerró los tres procesos mediante EOF. Las capturas muestran el usuario, el equipo, la fecha y la zona horaria del sistema.
+- Los CSV de data/grpc/practica-byron-01 conservan 12 eventos: envío y recepción de tres solicitudes y tres acuses. Los eventos registrados van de las 18:49:51 a las 18:52:27 del 21 de noviembre de 2026, UTC-05:00. Codex comprobó que cada recepción tiene un reloj mayor que su envío y que el reloj local aumenta en cada nodo.
+- Se conservaron seis capturas originales, sin edición, en evidencias/byron/: tres del intercambio y tres del cierre. Codex verificó que las copias coinciden mediante SHA-256 con los archivos adjuntados por Byron.
+- Después del cierre se generó y verificó data/grpc/practica-byron-01/SHA256SUMS para los tres CSV, sin alterar sus bytes. Las rutas del manifiesto son relativas a esa carpeta.
+- Codex añadió la regla data/**/*.csv -text en .gitattributes para conservar los bytes de los datos al usar Git, sin convertir los saltos de línea según el sistema operativo.
+- Codex actualizó grpc.tex y la documentación del bloque con la práctica observada, sus archivos y el alcance de la asistencia. Se mantiene separada la ejecución manual de Byron de las comprobaciones técnicas del asistente.
+
+Alcance. Esta sesión acredita la práctica manual descrita y sus evidencias. No es la campaña oficial: no contiene las cinco repeticiones, los dos tamaños de carga ni la prueba concurrente. Tampoco acredita modificaciones propias de código, los tres commits significativos ni dominio del código en la demostración. La implementación gRPC y esta documentación conservan la declaración de asistencia de Codex.
