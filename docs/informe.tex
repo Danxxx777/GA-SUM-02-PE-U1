@@ -1,0 +1,381 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{fvextra}
+\RecustomVerbatimEnvironment{verbatim}{Verbatim}{
+  frame=single,
+  framesep=3mm,
+  fontsize=\small,
+  breaklines=true,
+  breakanywhere=true
+}
+\usepackage[backend=biber,style=ieee]{biblatex}
+\addbibresource{referencias.bib}
+\usepackage[hidelinks]{hyperref}
+
+\title{Comunicación entre procesos con sockets TCP y gRPC\\GA-SUM-01 / PE-U1}
+\author{Coronel Gomez Khriz Alexander\\Giraldo Cagua Diego Jose\\
+Loor Mendoza Byron Daniel\\Silva Triviño John Jairo}
+\date{Noviembre de 2026}
+
+\begin{document}
+\maketitle
+\noindent Repositorio: \url{https://github.com/Danxxx777/GA-SUM-02-PE-U1}
+
+\section{Objetivo e hipótesis}
+Comparar la latencia de ida y vuelta y el rendimiento de los dos mecanismos
+en tres procesos. Verificar en los eventos registrados que cada recepción
+tiene un reloj lógico mayor que su envío correspondiente.
+
+\paragraph{Hipótesis propuesta, pendiente de validación por el equipo.}
+En localhost, se espera que TCP con JSON tenga menor latencia mediana para
+cargas de 100 bytes en modo secuencial. La implementación usa una conexión
+persistente y un delimitador de línea, mientras que el RPC agrega el
+procesamiento de HTTP/2 y su contrato binario. La diferencia con 10240 bytes
+se evaluará por separado.
+
+\section{Fundamento y estudios relacionados}
+TCP ofrece un flujo de bytes entre extremos \cite{rfc9293}. La aplicación
+delimita los mensajes JSON para distinguir solicitudes y acuses.
+HTTP/2 define tramas y permite multiplexar intercambios sobre una conexión
+\cite{rfc9113}. En esta práctica gRPC usa ese protocolo y un contrato
+Protocol Buffers.
+
+Niswar et al. midieron tiempo de respuesta y utilización de CPU al comparar
+gRPC, REST y GraphQL en microservicios \cite{niswar2024}.
+Blinowski y Pełka evaluaron cuatro familias de RPC en ambientes de nube y
+analizaron la influencia del tamaño de los argumentos \cite{blinowski2026}.
+Di Meglio y Starace estudiaron cómo el framework y el entorno afectan el
+rendimiento y el consumo de recursos \cite{dimeglio2024}.
+Estos estudios motivan mantener constantes la máquina y la carga para esta
+comparación en localhost.
+
+\section{Arquitectura}
+Cada proceso puede enviar y recibir. Los nodos A, B y C escuchan en
+\texttt{127.0.0.1} en los puertos 5000, 5001 y 5002, respectivamente.
+La secuencia principal recorre A $\to$ B, B $\to$ C y C $\to$ A.
+\IfFileExists{figuras/arquitectura.pdf}{%
+  \includegraphics[width=\linewidth]{figuras/arquitectura.pdf}%
+}{\par\textit{Pendiente de incorporar el diagrama actualizado de FORM-TL-01.}}
+
+\section{Implementación de la comunicación mediante sockets TCP}
+\label{sec:sockets}
+
+Cada nodo ejecuta un servidor TCP en un hilo de aceptación y un cliente que
+recibe órdenes por la entrada estándar. Esto permite que un mismo proceso
+envíe solicitudes y atienda las de otros nodos. Los servidores escuchan
+exclusivamente en la dirección local \texttt{127.0.0.1}. Los puertos de la
+práctica son 5000, 5001 y 5002 para los nodos A, B y C, respectivamente.
+
+El código se divide en tres módulos. \texttt{servidor.py} implementa el
+encuadre de los mensajes, su validación y la atención de conexiones;
+\texttt{cliente.py} gestiona los envíos, los acuses y la latencia;
+\texttt{nodo.py} integra ambos con el reloj y el registro compartidos.
+
+\subsection{Delimitación y validación de los mensajes}
+
+Cada mensaje es un objeto JSON codificado en UTF-8 y terminado por un byte
+de salto de línea. Los saltos de línea dentro del texto se escapan durante
+la serialización JSON. Una lectura de TCP no se interpreta como un mensaje
+completo: el receptor acumula bytes hasta encontrar el delimitador y
+conserva los sobrantes para la siguiente lectura. La decodificación UTF-8
+ocurre después de reconstruir la línea, por lo que un carácter puede llegar
+fragmentado en varias lecturas.
+
+Las solicitudes contienen los campos \texttt{sender}, \texttt{timestamp},
+\texttt{message} y \texttt{message\_id}. Se exige texto no vacío para el
+emisor y el identificador, texto para el mensaje y un entero no negativo
+para el reloj; los valores booleanos no se aceptan como enteros. El límite
+de cada objeto JSON serializado es de 1 MiB, sin contar el delimitador.
+Este límite incluye los campos y los escapes del JSON, además de la carga
+útil. Los tamaños experimentales de 100 y 10240 bytes corresponden a la
+carga útil definida por el ejecutor, no al tamaño total transmitido.
+
+\subsection{Acuses y reloj de Lamport}
+
+El receptor actualiza su reloj al aceptar la solicitud y vuelve a
+incrementarlo antes de enviar el acuse. Este contiene los campos comunes,
+\texttt{ok=true}, un identificador formado con el sufijo \texttt{-ack}
+y el campo \texttt{ack\_for}, que confirma el identificador original.
+El cliente comprueba el emisor, ambos identificadores, el indicador de
+éxito y que el reloj del acuse sea posterior al de su envío. Después
+aplica la actualización de recepción a su propio reloj.
+
+Cada proceso mantiene una instancia de \texttt{RelojLamport}. Un bloqueo
+adicional agrupa el avance del reloj con la escritura del evento, para
+evitar que los hilos registren dos valores en orden inverso. Las solicitudes
+y los acuses generan eventos de envío y recepción. El siguiente fragmento
+resume la operación local usada en \texttt{EstadoNodo.evento}:
+
+\begin{verbatim}
+with self._lock:
+    tipo = "envio" if remoto is None else "recepcion"
+    valor = (self.reloj.envio() if remoto is None
+             else self.reloj.recepcion(remoto))
+    if self.registro is not None:
+        self.registro.escribir(identificador, tipo, valor)
+    return valor
+\end{verbatim}
+
+\subsection{Latencia y manejo de errores}
+
+Se conserva una conexión por destino y puerto durante la vida del cliente.
+La primera conexión se establece antes de iniciar el intervalo de latencia.
+La medición usa \texttt{time.perf\_counter()} desde el envío de la solicitud,
+incluida su serialización, hasta recibir y validar el acuse. El resultado
+se expresa en milisegundos. En las corridas de latencia se omite el argumento
+\texttt{--eventos}; el reloj permanece activo.
+
+El tiempo máximo predeterminado es de cinco segundos para la operación
+completa, incluida la conexión inicial. Un plazo absoluto se comprueba
+en cada lectura para que una respuesta que llega lentamente no prolongue
+indefinidamente la espera. Se puede configurar mediante \texttt{--timeout}
+con valores mayores que cero y de hasta diez segundos, inferiores a los
+quince segundos de espera del ejecutor.
+
+Un destino no disponible, un cierre prematuro, un JSON inválido o un acuse
+incorrecto producen una respuesta con \texttt{ok=false} y una descripción
+del error. Se descarta la conexión afectada; no se reintenta automáticamente
+la solicitud, porque el receptor podría haberla procesado. Una orden
+posterior puede abrir otra conexión. Los diagnósticos se escriben en la
+salida de error para preservar el protocolo JSON de la salida estándar.
+
+\subsection{Ejecución y comprobación de desarrollo}
+
+Desde la raíz del repositorio se inicia cada nodo en una terminal distinta.
+Por ejemplo, para A:
+
+\begin{verbatim}
+python -m src.sockets.nodo --nombre nodo-A --puerto 5000 ^
+  --corrida prueba-khriz
+\end{verbatim}
+
+El carácter de continuación mostrado corresponde a \texttt{cmd.exe}.
+Para B y C se sustituyen el nombre y el puerto por \texttt{nodo-B}/5001 y
+\texttt{nodo-C}/5002. El nodo informa su disponibilidad mediante una línea
+JSON. Una orden de ejemplo, escrita como una sola línea en la terminal de A,
+es la siguiente:
+
+\begin{verbatim}
+{"destino":"nodo-B","puerto":5001,"message":"Hola","message_id":"K-001"}
+\end{verbatim}
+
+Para registrar eventos se añade \texttt{--eventos} seguido de una
+ruta CSV distinta para cada nodo; el archivo debe ser nuevo. El proceso
+cierra sus conexiones al terminar la entrada estándar.
+
+La integración también se comprueba con el ejecutor existente:
+
+\begin{verbatim}
+python experiments/ejecutar.py --mecanismo sockets ^
+  --modo humo --salida data/prueba-tcp-khriz
+python -B -m unittest discover -s tests -v
+\end{verbatim}
+
+La carpeta de salida de la prueba de humo debe ser nueva. Las pruebas
+automatizadas cubren reconstrucción de UTF-8 fragmentado, mensajes
+agrupados, conexiones persistentes, mensajes largos, entradas inválidas,
+tiempo de espera, acuses incorrectos y comunicación de los tres procesos.
+Además verifican eventos reales de solicitudes y acuses y dos envíos
+independientes con el mismo reloj. Sus CSV se crean en carpetas temporales
+y no sustituyen los datos ni las conclusiones de la campaña experimental.
+
+La captura de autoría del intercambio se guarda en
+\texttt{evidencias/khriz/}. Debe mostrar la ejecución real en el equipo
+del integrante, junto con su identificación y la fecha y hora del sistema.
+\section{Implementación de la comunicación mediante gRPC}
+\label{sec:grpc}
+
+Cada nodo mantiene un servidor gRPC y un cliente dentro del mismo proceso.
+El servidor atiende RPC mediante un grupo de cuatro hilos y escucha en
+\texttt{127.0.0.1}. El cliente utiliza un canal por destino y puerto.
+\texttt{nodo.py} integra ambos componentes con el reloj de Lamport y el
+registro CSV de \texttt{src/comun/}, sin depender del transporte TCP.
+
+\subsection{Contrato y generación}
+
+El servicio \texttt{Mensajeria} expone la operación unaria
+\texttt{EnviarMensaje}: cada solicitud produce un acuse. El contrato
+de \texttt{proto/mensajes.proto} contiene los mismos datos lógicos que TCP:
+
+\begin{verbatim}
+syntax = "proto3";
+package pe_u1;
+service Mensajeria {
+  rpc EnviarMensaje(Mensaje) returns (Acuse);
+}
+message Mensaje {
+  string sender = 1;
+  int64 timestamp = 2;
+  string message = 3;
+  string message_id = 4;
+}
+message Acuse {
+  string sender = 1;
+  int64 timestamp = 2;
+  string message = 3;
+  string message_id = 4;
+  string ack_for = 5;
+  bool ok = 6;
+}
+\end{verbatim}
+
+Los campos de texto usan \texttt{string} y el reloj usa un entero de
+64 bits con signo. El servicio rechaza relojes negativos e identificadores
+o emisores vacíos mediante el estado \texttt{INVALID\_ARGUMENT}. Los números
+de campo identifican los valores en la representación binaria. El acuse
+confirma el identificador original mediante \texttt{ack\_for}; su propio
+identificador añade el sufijo \texttt{-ack}.
+
+La generación sigue el procedimiento documentado por
+gRPC\footnote{\texttt{https://grpc.io/docs/languages/python/basics/}}.
+Desde la raíz, en \texttt{cmd.exe}, se ejecuta:
+
+\begin{verbatim}
+python -m grpc_tools.protoc -Isrc/grpc/generado=proto ^
+  --python_out=. --grpc_python_out=. proto/mensajes.proto
+\end{verbatim}
+
+El prefijo virtual determina la ruta \texttt{src/grpc/generado/} y las
+importaciones del paquete. Allí se generan \texttt{mensajes\_pb2.py}
+y \texttt{mensajes\_pb2\_grpc.py}, sin modificaciones manuales.
+
+Se comprobaron las siguientes versiones: Python 3.12, grpcio 1.85.3,
+grpcio-tools 1.85.3 y protobuf 7.36.2.
+
+\subsection{Reloj, acuses y latencia}
+
+Cada proceso comparte un único reloj entre cliente y servidor.
+Antes de enviar la solicitud se incrementa el contador. El servidor
+aplica \(\max(local, recibido)+1\) al recibirla y vuelve a incrementarlo
+al enviar el acuse. El cliente valida el emisor, los identificadores,
+el indicador de éxito y que el reloj del acuse sea posterior al de su
+solicitud; después registra la recepción. Un bloqueo agrupa cada avance
+del reloj con su escritura CSV para conservar el orden local entre hilos.
+
+La conexión inicial se establece antes del intervalo de latencia y el
+canal se reutiliza en las solicitudes posteriores. La medición incluye
+la serialización de la solicitud, el RPC, la deserialización del acuse
+y su validación, y termina antes del registro de la recepción:
+
+\begin{verbatim}
+inicio = perf_counter()
+acuse = stub.EnviarMensaje(solicitud, timeout=restante,
+                          wait_for_ready=False)
+\end{verbatim}
+
+Después de validar el acuse se calcula
+\texttt{(perf\_counter() - inicio) * 1000}. El tiempo máximo de la
+operación completa, incluida la conexión inicial, es de cinco segundos
+por defecto. El RPC recibe el tiempo restante de ese presupuesto.
+\texttt{--timeout} permite valores mayores que cero y de hasta diez
+segundos, inferiores a la espera de quince segundos del ejecutor.
+Tras un fallo se cierra el canal afectado. La aplicación no reintenta
+automáticamente la solicitud, porque el servidor podría haberla procesado
+antes de agotarse el plazo. Una orden posterior puede abrir otro canal.
+
+\subsection{Interfaz de ejecución y errores}
+
+Los argumentos, las órdenes JSON por entrada estándar y las respuestas
+son compatibles con el ejecutor existente. Una respuesta inicial con
+\texttt{ok=true} anuncia que el servidor está activo. Las órdenes contienen
+\texttt{destino}, \texttt{puerto}, \texttt{message} y \texttt{message\_id}.
+Una respuesta exitosa devuelve el identificador, \texttt{ok=true} y
+\texttt{latencia\_ms}. Los fallos devuelven \texttt{ok=false} y una
+descripción; los errores gRPC incluyen el estado y el detalle del RPC.
+La salida estándar contiene exclusivamente respuestas JSON. Los
+diagnósticos se reservan para la salida de error. Al terminar la entrada
+estándar, el proceso cierra el cliente y el servidor.
+
+Para iniciar A desde la raíz se utiliza:
+
+\begin{verbatim}
+python -m src.grpc.nodo --nombre nodo-A --puerto 5000 ^
+  --corrida prueba-byron --eventos data/grpc/prueba-A.csv
+\end{verbatim}
+
+B y C se inician en terminales distintas con sus nombres y puertos
+5001 y 5002, y con rutas CSV propias. Los archivos de eventos deben ser
+nuevos. Cuando se omite \texttt{--eventos}, el reloj sigue activo pero
+no se escriben eventos, conforme al protocolo de medición.
+
+\subsection{Comprobación manual en el equipo de Byron}
+
+El 21 de noviembre de 2026, Byron inició los tres nodos en terminales
+de su equipo y ejecutó tres solicitudes: \texttt{B-001} de A hacia B,
+\texttt{B-002} de B hacia C y \texttt{B-003} de C hacia A. Las tres
+recibieron un acuse válido. Después cerró los procesos mediante EOF.
+Las capturas originales de los intercambios y del cierre se conservan
+en \texttt{evidencias/byron/}, con usuario, equipo, fecha y zona horaria
+visibles.
+
+Los tres CSV de \texttt{data/grpc/practica-byron-01/} contienen doce
+eventos: envío y recepción de tres solicitudes y sus tres acuses.
+El primer intercambio registra los valores 1, 2, 3 y 4, correspondientes
+al envío de A, recepción en B, envío del acuse de B y recepción en A.
+En los seis pares registrados, el reloj de recepción es mayor que el
+de envío. Los relojes locales también crecen estrictamente.
+Los eventos abarcan desde las 18:49:51 hasta las 18:52:27, UTC-05:00.
+Después del cierre se calcularon y verificaron las sumas de los CSV
+en el archivo \texttt{SHA256SUMS} de esa misma carpeta.
+
+Esta comprobación manual documenta el intercambio entre los tres
+procesos. Por su número de envíos y sus condiciones, no sustituye
+las repeticiones, tamaños y concurrencia de la campaña experimental,
+ni permite concluir qué transporte tiene menor latencia.
+
+\subsection{Alcance de las comprobaciones y asistencia de IA}
+
+Codex, agente de OpenAI basado en GPT-6, generó el contrato, los módulos
+gRPC, las pruebas automatizadas y
+esta sección, reutilizando las utilidades comunes y el ejecutor existentes.
+Codex ejecutó comprobaciones técnicas con conexiones locales reales y
+datos temporales: acuses, plazos, errores, reutilización del canal,
+relojes, concurrencia e integración de los tres procesos. Estas
+comprobaciones no constituyen la campaña experimental ni evidencias
+personales de ejecución de Byron. La práctica manual descrita arriba
+fue operada por Byron siguiendo la orientación de Codex. Codex comprobó
+los registros, copió sin editar las capturas proporcionadas por Byron,
+verificó sus copias y calculó las sumas de los CSV cerrados. La redacción
+de esta comprobación también fue asistida por Codex.
+
+\section{Protocolo experimental}
+Se programan veinte solicitudes para comprobar Lamport. Una corrida adicional
+parte de relojes reiniciados y programa los primeros envíos de A y B hacia C.
+Para medir latencia se usan cargas útiles de 100 y 10240 bytes, modos
+secuencial y concurrente y cien solicitudes por corrida. Cada combinación
+tiene un calentamiento y cinco repeticiones válidas. La latencia mide el
+intervalo entre el envío y el acuse. El rendimiento se calcula con las
+solicitudes completadas y la duración de pared de cada corrida.
+% Incorporar las condiciones reales a partir de entorno.md.
+
+\section{Resultados y discusión}
+Pendientes de la campaña oficial y del análisis de John.
+
+\section{Aportes}
+% Completar con aportes efectivamente realizados y enlaces de los cuatro integrantes.
+
+\section{Declaración de uso de inteligencia artificial}
+
+\noindent
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{0.17\linewidth}>{\raggedright\arraybackslash}p{0.21\linewidth}>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Integrante} & \textbf{Herramienta} & \textbf{Uso declarado} \\
+\midrule
+Khriz Coronel & Pendiente & Pendiente \\
+\addlinespace
+Diego Giraldo & Codex (OpenAI) &
+Apoyo en la preparación de la base del ejecutor, la redacción y el formato del informe, y la búsqueda y verificación de referencias. \\
+\addlinespace
+Byron Loor & Pendiente & Pendiente \\
+\addlinespace
+John Silva & Pendiente & Pendiente \\
+\bottomrule
+\end{tabularx}
+
+
+\printbibliography
+\end{document}
