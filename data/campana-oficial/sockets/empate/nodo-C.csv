@@ -1,0 +1,5 @@
+corrida,mecanismo,message_id,nodo,evento,reloj,hora_utc
+empate,sockets,E-B,nodo-C,recepcion,2,2026-11-22T03:26:41.813860+00:00
+empate,sockets,E-A,nodo-C,recepcion,3,2026-11-22T03:26:41.814860+00:00
+empate,sockets,E-A-ack,nodo-C,envio,4,2026-11-22T03:26:41.814860+00:00
+empate,sockets,E-B-ack,nodo-C,envio,5,2026-11-22T03:26:41.815860+00:00
