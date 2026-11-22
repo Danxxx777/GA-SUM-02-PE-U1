@@ -66,3 +66,14 @@ Estado al cierre. Publiqué la campaña completa en main. Los CSV quedaron dispo
 21 de noviembre de 2026 - Declaración individual de IA en el informe integrado
 Por solicitud de Byron Daniel Loor Mendoza, Codex incorporó en su fila de docs/informe.tex la declaración en primera persona aprobada en este chat. Se sincronizó docs/secciones/grpc.tex y se sustituyó la declaración repetida dentro del informe por una referencia a la sección general de IA. La declaración identifica la asistencia en organización, contrato, implementación, documentación y comprobaciones, cuyo alcance queda registrado en esta bitácora. Byron confirmó su nombre para la publicación y dictó el mensaje del commit de cierre de esta sección.
 Codex compiló el informe con pdfLaTeX, Biber y dos pasadas adicionales de pdfLaTeX, y revisó visualmente sus siete páginas. Se ajustaron los márgenes a 2.5 cm para resolver desbordes y se añadieron bordes completos a la tabla de declaraciones. La dependencia geometry quedó documentada en el README. El PDF conserva el estado de los apartados del equipo; esta actualización cierra únicamente la incorporación de la declaración individual solicitada.
+
+21 de noviembre de 2026 — Análisis de la campaña oficial y verificación de Lamport
+Integrante: SILVA TRIVIÑO JOHN JAIRO (Johnst2000).
+
+Trabajo realizado. Con los CSV de la campaña oficial calculé la media, la mediana, la desviación estándar, el percentil 95, el intervalo de confianza del 95 % y el rendimiento de sockets TCP y gRPC, por tamaño y modo, excluyendo los calentamientos. Los sockets TCP tuvieron menor latencia y mayor rendimiento en las cuatro combinaciones, sin fallos. Adapté el verificador de Lamport al formato real de los CSV y lo ejecuté sobre los eventos de ambos mecanismos: se cumplieron las tres comprobaciones y la corrida de empate mostró dos envíos concurrentes con reloj 1. Commits 17277a3 (analizar.py), 3cd22d3 (verificar_lamport.py), b9fdcf3 (tablas, gráficos e informe de Lamport), 2404570 (sección analisis.tex), 13b8d5f y ac264d4 (captura en evidencias/john) y fbd63d0 (integración en el informe).
+
+Dificultad y solución. Mi verificador esperaba otros nombres de columnas que los de RegistroEventos; los cambié a message_id, evento y hora_utc y agregué la opción --unir para juntar los tres nodos de cada corrida.
+
+Declaración de IA: Usé Claude (Anthropic), modelo Sonnet 5.5, para escribir los scripts de análisis y de verificación y el borrador de la sección. Ejecuté el análisis en mi equipo, comprobé las cifras contra los CSV y revisé el texto antes de subirlo.
+
+Estado al cierre. Análisis, tablas, gráficos, verificación de Lamport y captura publicados en main.
