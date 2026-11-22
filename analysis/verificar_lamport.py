@@ -3,9 +3,10 @@
 Uso:
     python analysis/verificar_lamport.py data/sockets/eventos.csv data/grpc/eventos.csv
     python analysis/verificar_lamport.py data            # busca eventos*.csv dentro de la carpeta
+    python analysis/verificar_lamport.py --unir DATA/sockets/eventos DATA/grpc/eventos   # un CSV por nodo
 
 Cada CSV de eventos debe tener estas columnas (los nombres se pueden cambiar en COLUMNAS):
-    id_mensaje, nodo, tipo_evento (envio | recepcion), reloj, hora_real
+    message_id, nodo, evento (envio | recepcion), reloj, hora_utc
 
 El script comprueba, SOLO con los datos del archivo (no genera valores):
   1. Cada mensaje tiene un envío y una recepción (reporta pares faltantes o duplicados).
@@ -18,11 +19,13 @@ Termina con código 0 si las comprobaciones 1 a 3 pasan, y con 1 si alguna falla
 import argparse
 import csv
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
-COLUMNAS = {"id": "id_mensaje", "nodo": "nodo", "tipo": "tipo_evento",
-            "reloj": "reloj", "hora": "hora_real"}
+# Esquema de los CSV de la campaña oficial: corrida,mecanismo,message_id,nodo,evento,reloj,hora_utc
+COLUMNAS = {"id": "message_id", "nodo": "nodo", "tipo": "evento",
+            "reloj": "reloj", "hora": "hora_utc"}
 ENVIO = {"envio", "envío", "send", "sent"}
 RECEPCION = {"recepcion", "recepción", "recv", "receive", "received"}
 
@@ -175,16 +178,35 @@ def revisar_archivo(ruta, salida):
     return not (problemas_pares or problemas_regla or problemas_mono)
 
 
+def unir_nodos(carpeta):
+    """Junta los CSV nodo-*.csv de una carpeta en un archivo temporal y devuelve su ruta."""
+    partes = sorted(Path(carpeta).glob("nodo-*.csv"))
+    if not partes:
+        sys.exit(f"{carpeta}: no hay archivos nodo-*.csv")
+    destino = Path(tempfile.mkdtemp()) / (Path(carpeta).parent.name + "-" + Path(carpeta).name + ".csv")
+    with open(destino, "w", newline="", encoding="utf-8") as salida:
+        for i, parte in enumerate(partes):
+            lineas = parte.read_text(encoding="utf-8").splitlines()
+            salida.write("\n".join(lineas if i == 0 else lineas[1:]) + "\n")
+    return destino
+
+
 def main():
     parser = argparse.ArgumentParser(description="Verifica el reloj de Lamport con los CSV de eventos.")
     parser.add_argument("rutas", nargs="+", help="CSV de eventos o carpetas que los contienen (eventos*.csv)")
     parser.add_argument("--salida", help="archivo de texto donde guardar el informe")
+    parser.add_argument("--unir", action="store_true",
+                        help="cada ruta es una carpeta con un CSV por nodo (nodo-*.csv): se unen en un solo "
+                             "conjunto de eventos antes de verificar")
     args = parser.parse_args()
 
     archivos = []
     for r in args.rutas:
         ruta = Path(r)
-        archivos += sorted(ruta.rglob("eventos*.csv")) if ruta.is_dir() else [ruta]
+        if args.unir:
+            archivos.append(unir_nodos(ruta))
+        else:
+            archivos += sorted(ruta.rglob("eventos*.csv")) if ruta.is_dir() else [ruta]
     if not archivos:
         sys.exit("No se encontró ningún CSV de eventos.")
 
