@@ -1,6 +1,7 @@
 \documentclass[11pt,a4paper]{article}
 \usepackage[T1]{fontenc}
 \usepackage[spanish]{babel}
+\usepackage[margin=2.5cm]{geometry}
 \usepackage{graphicx}
 \usepackage{tabularx}
 \usepackage{booktabs}
@@ -327,20 +328,11 @@ procesos. Por su número de envíos y sus condiciones, no sustituye
 las repeticiones, tamaños y concurrencia de la campaña experimental,
 ni permite concluir qué transporte tiene menor latencia.
 
-\subsection{Alcance de las comprobaciones y asistencia de IA}
+\subsection{Asistencia en el desarrollo}
 
-Codex, agente de OpenAI basado en GPT-6, generó el contrato, los módulos
-gRPC, las pruebas automatizadas y
-esta sección, reutilizando las utilidades comunes y el ejecutor existentes.
-Codex ejecutó comprobaciones técnicas con conexiones locales reales y
-datos temporales: acuses, plazos, errores, reutilización del canal,
-relojes, concurrencia e integración de los tres procesos. Estas
-comprobaciones no constituyen la campaña experimental ni evidencias
-personales de ejecución de Byron. La práctica manual descrita arriba
-fue operada por Byron siguiendo la orientación de Codex. Codex comprobó
-los registros, copió sin editar las capturas proporcionadas por Byron,
-verificó sus copias y calculó las sumas de los CSV cerrados. La redacción
-de esta comprobación también fue asistida por Codex.
+La declaración individual del bloque gRPC se recoge en la
+sección~\ref{sec:declaracion-ia}. La bitácora y los archivos de la práctica
+conservan el detalle de las intervenciones y de las comprobaciones.
 
 \section{Protocolo experimental}
 Se programan veinte solicitudes para comprobar Lamport. Una corrida adicional
@@ -359,21 +351,30 @@ Pendientes de la campaña oficial y del análisis de John.
 % Completar con aportes efectivamente realizados y enlaces de los cuatro integrantes.
 
 \section{Declaración de uso de inteligencia artificial}
+\label{sec:declaracion-ia}
 
 \noindent
-\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{0.17\linewidth}>{\raggedright\arraybackslash}p{0.21\linewidth}>{\raggedright\arraybackslash}X@{}}
-\toprule
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.17\linewidth}|>{\raggedright\arraybackslash}p{0.21\linewidth}|>{\raggedright\arraybackslash}X|}
+\hline
 \textbf{Integrante} & \textbf{Herramienta} & \textbf{Uso declarado} \\
-\midrule
+\hline
 Khriz Coronel & Pendiente & Pendiente \\
-\addlinespace
+\hline
 Diego Giraldo & Codex (OpenAI) &
 Apoyo en la preparación de la base del ejecutor, la redacción y el formato del informe, y la búsqueda y verificación de referencias. \\
-\addlinespace
-Byron Loor & Pendiente & Pendiente \\
-\addlinespace
+\hline
+Byron Daniel Loor Mendoza & Codex (OpenAI), agente basado en GPT-6 &
+Utilicé OpenAI Codex como herramienta de asistencia para organizar el
+repositorio y desarrollar el bloque gRPC. Su intervención comprendió la
+elaboración del contrato de mensajes, la implementación, la documentación
+técnica y la revisión de su presentación. También realizó comprobaciones
+automatizadas de desarrollo y verificaciones de los registros y las sumas
+SHA-256. El detalle de la asistencia, los archivos afectados y las
+comprobaciones realizadas está documentado en la bitácora y el historial
+del repositorio. \\
+\hline
 John Silva & Pendiente & Pendiente \\
-\bottomrule
+\hline
 \end{tabularx}
 
 

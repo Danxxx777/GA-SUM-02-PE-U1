@@ -61,4 +61,8 @@ Dificultad y solución. En los primeros intentos, el Control de aplicaciones de 
 
 Declaración de IA: Utilicé Codex (OpenAI) para diagnosticar el bloqueo de gRPC en Windows, elegir una carpeta nueva para repetir la campaña y verificar las corridas y los hashes SHA-256 de los CSV. Ejecuté personalmente la campaña oficial de TCP y gRPC. Los datos se obtuvieron de esas ejecuciones reales.
 
-Estado al cierre. Publiqué la campaña completa en main. Los CSV quedaron disponibles para que John verifique el reloj de Lamport y genere las tablas y los gráficos. 
+Estado al cierre. Publiqué la campaña completa en main. Los CSV quedaron disponibles para que John verifique el reloj de Lamport y genere las tablas y los gráficos.
+
+21 de noviembre de 2026 - Declaración individual de IA en el informe integrado
+Por solicitud de Byron Daniel Loor Mendoza, Codex incorporó en su fila de docs/informe.tex la declaración en primera persona aprobada en este chat. Se sincronizó docs/secciones/grpc.tex y se sustituyó la declaración repetida dentro del informe por una referencia a la sección general de IA. La declaración identifica la asistencia en organización, contrato, implementación, documentación y comprobaciones, cuyo alcance queda registrado en esta bitácora. Byron confirmó su nombre para la publicación y dictó el mensaje del commit de cierre de esta sección.
+Codex compiló el informe con pdfLaTeX, Biber y dos pasadas adicionales de pdfLaTeX, y revisó visualmente sus siete páginas. Se ajustaron los márgenes a 2.5 cm para resolver desbordes y se añadieron bordes completos a la tabla de declaraciones. La dependencia geometry quedó documentada en el README. El PDF conserva el estado de los apartados del equipo; esta actualización cierra únicamente la incorporación de la declaración individual solicitada.

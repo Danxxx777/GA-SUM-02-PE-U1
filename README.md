@@ -40,4 +40,4 @@ pdflatex -halt-on-error informe.tex
 ```
 
 Se necesita pdfLaTeX, Biber, biblatex con el estilo IEEE, babel en español,
-graphicx, hyperref, tabularx, booktabs y fvextra. El archivo principal es informe.tex.
+geometry, graphicx, hyperref, tabularx, booktabs y fvextra. El archivo principal es informe.tex.
