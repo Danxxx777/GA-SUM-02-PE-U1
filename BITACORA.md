@@ -51,3 +51,14 @@ Trabajo verificable
 - Codex actualizó grpc.tex y la documentación del bloque con la práctica observada, sus archivos y el alcance de la asistencia. Se mantiene separada la ejecución manual de Byron de las comprobaciones técnicas del asistente.
 
 Alcance. Esta sesión acredita la práctica manual descrita y sus evidencias. No es la campaña oficial: no contiene las cinco repeticiones, los dos tamaños de carga ni la prueba concurrente. Tampoco acredita modificaciones propias de código, los tres commits significativos ni dominio del código en la demostración. La implementación gRPC y esta documentación conservan la declaración de asistencia de Codex.
+
+de noviembre de 2026 — Ejecución de la campaña oficial TCP y gRPC
+Integrante: GIRALDO CAGUA DIEGO JOSE (dgiraldoc).
+
+Trabajo realizado. Ejecuté la campaña oficial de sockets TCP y gRPC en el mismo equipo, con tres nodos en localhost. Probé cargas de 100 y 10 240 bytes en modo secuencial y concurrente. Cada mecanismo completó 24 corridas de 100 solicitudes: cuatro calentamientos y veinte corridas para el análisis. Registré las condiciones del equipo en entorno.md y comprobé que los 16 CSV coincidieran con el manifiesto SHA256SUMS.
+
+Dificultad y solución. En los primeros intentos, el Control de aplicaciones de Windows bloqueó la carga de cygrpc. TCP completó sus corridas, pero gRPC no pudo iniciar. Cuando import grpc volvió a funcionar, se verificaron ambos transportes con una prueba de humo y repetí la campaña completa en una carpeta nueva. Conservé los intentos parciales para dejar constancia de lo ocurrido.
+
+Declaración de IA: Utilicé Codex (OpenAI) para diagnosticar el bloqueo de gRPC en Windows, elegir una carpeta nueva para repetir la campaña y verificar las corridas y los hashes SHA-256 de los CSV. Ejecuté personalmente la campaña oficial de TCP y gRPC. Los datos se obtuvieron de esas ejecuciones reales.
+
+Estado al cierre. Publiqué la campaña completa en main. Los CSV quedaron disponibles para que John verifique el reloj de Lamport y genere las tablas y los gráficos. 
