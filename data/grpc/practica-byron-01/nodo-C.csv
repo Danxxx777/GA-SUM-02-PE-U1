@@ -1,0 +1,5 @@
+corrida,mecanismo,message_id,nodo,evento,reloj,hora_utc
+practica-byron-01,grpc,B-002,nodo-C,recepcion,5,2026-11-21T23:52:15.706954+00:00
+practica-byron-01,grpc,B-002-ack,nodo-C,envio,6,2026-11-21T23:52:15.708085+00:00
+practica-byron-01,grpc,B-003,nodo-C,envio,7,2026-11-21T23:52:27.485888+00:00
+practica-byron-01,grpc,B-003-ack,nodo-C,recepcion,10,2026-11-21T23:52:27.490392+00:00
